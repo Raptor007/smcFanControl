@@ -1,28 +1,15 @@
-# smcFanControl
+This is my **dangerous** fork of the smc-command portion of smcFanControl, which makes it easier to change the SMC fan **maximum speed** rather than just the minimum speed usually adjustable via smcFanControl.  In a way, it is the opposite utility.  I'm personally using this to prevent a broken sensor on my 2007 MacBook Pro from cranking the fans at full speed constantly.
 
-smcFanControl lets the user set a minimum speed for built-in fans. It allows you to increase your minimum fan speed to make your Intel Mac run cooler. In order to not damage your machine, smcFanControl does not let you set a minimum speed to a value below Apple's defaults.
+**USE AT YOUR OWN RISK!**  This could seriously harm your computer.  I've only tested this on my 2007 MacBook Pro, and it's possible the SMC values for temperature or fan speed are encoded differently on different Macs.
 
-![My image](https://dl.dropbox.com/u/363242/screenshots/smc_screenshot.png)
+To build and install:
 
+    cd smc-command
+    make
+	make install
 
-## Installing it using Homebrew & Cask
+Intended use is to add this line to the root crontab so it automatically adjusts every minute:
 
-Make sure you have both [Homebrew](http://brew.sh/) and [Cask](http://caskroom.io/) installed. You'll find intructions to install both tools on their respective websites.
+    * * * * * /usr/local/bin/smc -a
 
-After installing Homebrew and Cask, run:
-
-```
-$ brew cask install smcfancontrol
-```
-
-After that you'll be able to use Spotlight to launch smcFanControl normally. :-)
-
-
-Requirements: Intel Mac / OS X 10.7 or higher 
-
-
-Compiled version: https://www.eidac.de/smcfancontrol/smcfancontrol_2_6.zip
-
-FAQ / More info: Found in project under "Ressources/*.lproj/F.A.Q.rtf" or included in above .zip
-
-License: GPL 2
+To stop using this, remove the line from the crontab **and reboot immediately**.
