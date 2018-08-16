@@ -22,10 +22,13 @@ Usage
 ------
 # smc -h
 
-Apple System Management Control (SMC) tool 0.01
+Apple System Management Control (SMC) tool 0.01x
 Usage:
 ./smc [options]
     -f         : fan info decoded
+    -t         : temperature info decoded
+    -m <rpm>   : write fan max speed (requires sudo)
+    -a         : auto set fans for current temp (requires sudo)
     -h         : help
     -k <key>   : key to manipulate
     -l         : list all keys and values
