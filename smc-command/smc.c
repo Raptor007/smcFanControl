@@ -381,7 +381,7 @@ kern_return_t SMCReadKey2(UInt32Char_t key, SMCVal_t *val,io_connect_t conn)
     memset(val, 0, sizeof(SMCVal_t));
     
     inputStructure.key = _strtoul(key, 4, 16);
-    sprintf(val->key, key);
+    strcpy(val->key, key);
     
     result = SMCGetKeyInfo(inputStructure.key, &outputStructure.keyInfo, conn);
     if (result != kIOReturnSuccess)
@@ -555,6 +555,9 @@ void usage(char* prog)
     printf("Usage:\n");
     printf("%s [options]\n", prog);
     printf("    -f         : fan info decoded\n");
+    printf("    -t         : temperature info decoded\n");
+    printf("    -m <rpm>   : write fan max speed (requires sudo)\n");
+    printf("    -a         : auto set fans for current temp (requires sudo)\n");
     printf("    -h         : help\n");
     printf("    -k <key>   : key to manipulate\n");
     printf("    -l         : list all keys and values\n");
@@ -576,7 +579,7 @@ kern_return_t SMCWriteSimple(UInt32Char_t key, char *wvalue, io_connect_t conn)
         val.bytes[i] = (int) strtol(c, NULL, 16);
     }
     val.dataSize = i / 2;
-    sprintf(val.key, key);
+    strcpy(val.key, key);
     result = SMCWriteKey2(val, conn);
     if (result != kIOReturnSuccess)
         printf("Error: SMCWriteKey() = %08x\n", result);
@@ -595,12 +598,15 @@ int main(int argc, char *argv[])
     UInt32Char_t  key = { 0 };
     SMCVal_t      val;
     
-    while ((c = getopt(argc, argv, "fhk:lrw:v")) != -1)
+    while ((c = getopt(argc, argv, "fthk:lrw:m:av")) != -1)
     {
         switch(c)
         {
             case 'f':
                 op = OP_READ_FAN;
+                break;
+            case 't':
+                op = OP_READ_TEMP;
                 break;
             case 'k':
                 strncpy(key, optarg, sizeof(key));   //fix for buffer overflow
@@ -634,6 +640,22 @@ int main(int argc, char *argv[])
                 }
             }
                 break;
+            case 'm':
+                op = OP_WRITE;
+                if( ! key[0] )
+                    strcpy( key, "F0Mx" );
+            {
+                int rpmx4 = atoi(optarg) * 4;
+                val.bytes[0] = rpmx4 / 256;
+                val.bytes[1] = rpmx4 % 256;
+                val.dataSize = 2;
+            }
+                break;
+            case 'a':
+                op = OP_WRITE_AUTO;
+                if( ! key[0] )
+                    strcpy( key, "F0Mx" );
+                break;
             case 'h':
             case '?':
                 op = OP_NONE;
@@ -648,6 +670,48 @@ int main(int argc, char *argv[])
     }
     
     smc_init();
+    
+    if( op == OP_WRITE_AUTO )
+    {
+        result = SMCReadKey( "TC0D", &val );
+        if( result != kIOReturnSuccess )
+            printf("Error: SMCReadKey(\"TC0D\") = %08x\n", result);
+        else
+        {
+            float cpu = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0f;
+
+            result = SMCReadKey( "TG0D", &val );
+            if( result != kIOReturnSuccess )
+                printf("Error: SMCReadKey(\"TG0D\") = %08x\n", result);
+            else
+            {
+                float gpu = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0f;
+
+                // Pick an appropriate fan speed for the current temperatures.
+                float max = (cpu > gpu) ? cpu : gpu;
+                int rpmx4 = 3500 * 4;
+                if( max > 85 )
+                    rpmx4 = 6000 * 4;
+                else if( max > 83 )
+                    rpmx4 = 5500 * 4;
+                else if( max > 80 )
+                    rpmx4 = 5000 * 4;
+                else if( max > 76 )
+                    rpmx4 = 4500 * 4;
+                else if( max > 70 )
+                    rpmx4 = 4000 * 4;
+
+                // Don't drop fan speed too quickly (assuming we're using a cron job).
+                result = SMCReadKey( key, &val );
+                int currentx4 = ntohs(*(UInt16*)val.bytes);
+                if( rpmx4 < currentx4 - (500 * 4) )
+                    rpmx4 += (500 * 4);
+
+                op = OP_WRITE;
+                val.bytes[0] = rpmx4 / 256;
+                val.bytes[1] = rpmx4 % 256;
+                val.dataSize = 2;
+    }   }   }
     
     switch(op)
     {
@@ -675,10 +739,27 @@ int main(int argc, char *argv[])
             if (result != kIOReturnSuccess)
                 printf("Error: SMCPrintFans() = %08x\n", result);
             break;
+        case OP_READ_TEMP:
+        {
+            float cpu = 0, gpu = 0;
+            result = SMCReadKey( "TC0D", &val );
+            if( result != kIOReturnSuccess )
+                printf("Error: SMCReadKey(\"TC0D\") = %08x\n", result);
+            else
+                cpu = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0f;
+            result = SMCReadKey( "TG0D", &val );
+            if( result != kIOReturnSuccess )
+                printf("Error: SMCReadKey(\"TG0D\") = %08x\n", result);
+            else
+                gpu = ((SInt16)ntohs(*(UInt16*)val.bytes)) / 256.0f;
+            printf( "CPU: %6.1f C\n", cpu );
+            printf( "GPU: %6.1f C\n", gpu );
+            break;
+        }
         case OP_WRITE:
             if (strlen(key) > 0)
             {
-                sprintf(val.key, key);
+                strcpy(val.key, key);
                 result = SMCWriteKey(val);
                 if (result != kIOReturnSuccess)
                     printf("Error: SMCWriteKey() = %08x\n", result);
@@ -693,7 +774,7 @@ int main(int argc, char *argv[])
     smc_close();
     return 0;
 }
-#endif //#ifdef CMD_TOOL
+#endif //#ifdef CMD_TOOL_BUILD
 
 
 
