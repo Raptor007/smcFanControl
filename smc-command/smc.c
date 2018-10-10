@@ -692,8 +692,10 @@ int main(int argc, char *argv[])
                 int rpmx4 = 3500 * 4;
                 if( max > 80 )
                     rpmx4 = 6000 * 4;
-                else if( max > 76 )
+                else if( max > 78 )
                     rpmx4 = 5000 * 4;
+                else if( max > 75 )
+                    rpmx4 = 4700 * 4;
                 else if( max > 73 )
                     rpmx4 = 4500 * 4;
                 else if( max > 70 )
