@@ -691,7 +691,7 @@ int main(int argc, char *argv[])
                 float max = (cpu > gpu) ? cpu : gpu;
                 int rpmx4 = 3500 * 4;
                 if( max > 80 )
-                    rpmx4 = 6000 * 4;
+                    rpmx4 = 7000 * 4;
                 else if( max > 78 )
                     rpmx4 = 5000 * 4;
                 else if( max > 75 )
