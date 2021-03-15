@@ -690,7 +690,7 @@ int main(int argc, char *argv[])
                 // Pick an appropriate fan speed for the current temperatures.
                 float max = (cpu > gpu) ? cpu : gpu;
                 int rpmx4 = 3500 * 4;
-                if( max > 90 )
+                if( max > 88 )
                     rpmx4 = 7000 * 4;
                 else if( max > 80 )
                     rpmx4 = 5500 * 4;
